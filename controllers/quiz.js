@@ -28,7 +28,7 @@ exports.load = async (req, res, next, quizId) => {
 // MW that allows actions only if the user logged in is admin or is the author of the quiz.
 exports.adminOrAuthorRequired = (req, res, next) => {
 
-    const isAdmin  = !!req.loginUser.isAdmin;
+    const isAdmin = !!req.loginUser.isAdmin;
     const isAuthor = req.load.quiz.authorId === req.loginUser.id;
 
     if (isAdmin || isAuthor) {
@@ -55,10 +55,10 @@ exports.index = async (req, res, next) => {
     // Search:
     const search = req.query.search || '';
     if (search) {
-        const search_like = "%" + search.replace(/ +/g,"%") + "%";
+        const search_like = "%" + search.replace(/ +/g, "%") + "%";
 
-        countOptions.where.question = { [Op.like]: search_like };
-        findOptions.where.question = { [Op.like]: search_like };
+        countOptions.where.question = {[Op.like]: search_like};
+        findOptions.where.question = {[Op.like]: search_like};
     }
 
     // If there exists "req.load.user", then only the quizzes of that user are shown
@@ -204,32 +204,104 @@ exports.destroy = async (req, res, next) => {
 
 
 // GET /quizzes/:quizId/play
-    exports.play = (req, res, next) => {
+exports.play = (req, res, next) => {
 
-        const {query} = req;
-        const {quiz} = req.load;
+    const {query} = req;
+    const {quiz} = req.load;
 
-        const answer = query.answer || '';
+    const answer = query.answer || '';
 
-        res.render('quizzes/play', {
-            quiz,
-            answer
-        });
-    };
+    res.render('quizzes/play', {
+        quiz,
+        answer
+    });
+};
 
 
 // GET /quizzes/:quizId/check
-    exports.check = (req, res, next) => {
+exports.check = (req, res, next) => {
 
-        const {query} = req;
-        const {quiz} = req.load;
+    const {query} = req;
+    const {quiz} = req.load;
 
-        const answer = query.answer || "";
-        const result = answer.toLowerCase().trim() === quiz.answer.toLowerCase().trim();
+    const answer = query.answer || "";
+    const result = answer.toLowerCase().trim() === quiz.answer.toLowerCase().trim();
 
-        res.render('quizzes/result', {
-            quiz,
-            result,
-            answer
+    res.render('quizzes/result', {
+        quiz,
+        result,
+        answer
+    });
+};
+
+
+exports.randomPlay = async (req, res, next) => {
+
+    try {
+        // id's de los quizzes ya contestados:
+        req.session.rpResolved = req.session.rpResolved || [];
+
+        // Buscar un quiz para jugar
+        const where = {'id': {[Sequelize.Op.notIn]: req.session.rpResolved}};
+        const count = await models.Quiz.count({where})
+        const quiz = await models.Quiz.findOne({
+            where,
+            offset: Math.floor(Math.random() * count)
         });
-    };
+
+        const score = req.session.rpResolved.length;
+
+
+        if (quiz) {
+            res.render('quizzes/random_play', {quiz, score});
+            return;
+        }
+
+        // No quedan quizzes para jugar
+        delete req.session.rpResolved;
+
+        if (req.loginUser) {
+            const s = await models.Score.create({score});
+            req.loginUser.addScore(s);
+        }
+
+        res.render('quizzes/random_nomore', {score});
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+// GET /quizzes/randomcheck/:quizid
+exports.randomCheck = async (req, res, next) => {
+
+    req.session.rpResolved = req.session.rpResolved || [];
+
+    const answer = req.query.answer || "";
+
+    const result = answer.toLowerCase().trim() === req.load.quiz.answer.toLowerCase().trim();
+
+    if (result) {
+        // Evitar que me hagan llamadas a este metodo manualmente con una respuesta acertada para
+        // que se guarde muchas veces la misma respuesta en resolved, y asi conseguir que score
+        // se incremente indebidamente.
+        if (req.session.rpResolved.indexOf(req.load.quiz.id) == -1) {
+            req.session.rpResolved.push(req.load.quiz.id);
+        }
+    }
+
+    const score = req.session.rpResolved.length;
+
+    if (!result) {
+        delete req.session.rpResolved;
+
+        if (req.loginUser) {
+            await models.Score.create({score, playerId: req.loginUser.id})
+        }
+
+    }
+
+    res.render('quizzes/random_result', {result, answer, score});
+
+};

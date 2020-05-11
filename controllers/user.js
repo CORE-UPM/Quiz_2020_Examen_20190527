@@ -7,7 +7,11 @@ const paginate = require('../helpers/paginate').paginate;
 exports.load = async (req, res, next, userId) => {
 
     try {
-        const user = await models.User.findByPk(userId);
+        const user = await models.User.findByPk(userId, {
+            include: [
+                {model: models.Score, as: 'scores'}
+            ]
+        });
         if (user) {
             req.load = {...req.load, user};
             next();

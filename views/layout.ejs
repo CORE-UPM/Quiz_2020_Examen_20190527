@@ -40,6 +40,14 @@
             <a href="/users/<%= locals.loginUser.id %>/quizzes">My Quizzes</a>
         <% } %>
         <a href="/author">Author</a>
+
+        <!-- Examen -->
+        <a href="/quizzes/randomplay">Play</a>
+
+        <% if (locals.loginUser) { %>
+            <a href="/users/<%= locals.loginUser.id %>/scores">My Scores</a>
+        <% } %>
+
         <% if (locals.loginUser) { %>
             <a href="/users">Users</a>
         <% } %>

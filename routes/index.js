@@ -5,6 +5,11 @@ const quizController = require('../controllers/quiz');
 const userController = require('../controllers/user');
 const sessionController = require('../controllers/session');
 
+// Examen
+const scoreController = require('../controllers/score');
+
+
+
 //-----------------------------------------------------------
 
 // Routes for the resource /login
@@ -151,5 +156,16 @@ router.delete('/quizzes/:quizId(\\d+)',
 router.get('/quizzes/:quizId(\\d+)/play',  quizController.play);
 router.get('/quizzes/:quizId(\\d+)/check', quizController.check);
 
+
+// Examen
+router.get('/quizzes/randomplay',                quizController.randomPlay);
+router.get('/quizzes/randomcheck/:quizId(\\d+)', quizController.randomCheck);
+
+
+// Examen
+router.get('/users/:userId(\\d+)/scores',
+    sessionController.loginRequired,
+    sessionController.adminOrMyselfRequired,
+    scoreController.index);
 
 module.exports = router;
